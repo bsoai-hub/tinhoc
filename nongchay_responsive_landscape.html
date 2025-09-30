@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Sự Nóng Chảy của Đồng</title>
+    <!-- Tích hợp Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tích hợp Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Phông chữ tùy chỉnh và các kiểu giao diện */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            overflow-y: auto; /* Ngăn thanh cuộn */
+        }
+        /* Kiểu tùy chỉnh cho các thẻ card */
+        .card {
+            background-color: #1a202c; /* Nền tối cho card */
+            border: 1px solid #2d3748;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        /* Kiểu cho thanh trượt */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4fd1c5; /* Màu xanh mòng két cho con trỏ */
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #1a202c;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4fd1c5;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #1a202c;
+        }
+    
+/* Khi màn hình là điện thoại ngang, ép layout thành 2 cột */
+@media screen and (max-width: 1024px) and (orientation: landscape) {
+    .responsive-grid {
+        grid-template-columns: 3fr 2fr !important; /* trái 3 phần, phải 2 phần */
+    }
+}
+
+</style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center h-screen p-4">
+
+    <!-- Thay đổi từ lg thành md để ưu tiên giao diện ngang sớm hơn -->
+    <div class="w-full max-w-screen-2xl min-h-screen grid grid-cols-1 lg:grid-cols-5 gap-6 responsive-grid">
+
+        <!-- Cột trái: Mô phỏng phân tử (chiếm 3/5 không gian) -->
+        <div class="card flex flex-col flex-1 md:col-span-3">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-teal-300">Trạng Thái Phân Tử Đồng</h2>
+                <div id="temperature-display" class="text-lg font-semibold bg-gray-700 px-4 py-2 rounded-lg shadow-md">800°C</div>
+            </div>
+            <div class="flex-grow bg-gray-800 rounded-lg relative overflow-hidden">
+                <canvas id="moleculeCanvas" class="w-full h-full"></canvas>
+            </div>
+        </div>
+
+        <!-- Cột phải: Đồ thị và điều khiển (chiếm 2/5 không gian) -->
+        <div class="flex flex-col gap-6 flex-1 md:col-span-2">
+            <!-- Card chứa 2 đồ thị -->
+            <div class="card flex-1 flex flex-col min-h-0">
+                 <h2 class="text-xl font-bold text-teal-300 mb-2">Đồ Thị</h2>
+                 <div class="flex-grow grid grid-rows-2 gap-4">
+                    <div class="relative">
+                         <canvas id="temperatureChart"></canvas>
+                    </div>
+                    <div class="relative">
+                         <canvas id="internalEnergyChart"></canvas>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- Bảng điều khiển -->
+            <div class="card">
+                <h2 class="text-xl font-bold text-teal-300 mb-4">Bảng Điều Khiển</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 items-center gap-4">
+                    <button id="pauseButton" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300">Tạm Dừng</button>
+                    <input type="range" id="timeSlider" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer sm:col-span-2" min="0" max="1000" value="0">
+                </div>
+            </div>
+             <!-- Nút trở lại -->
+            <a href="index.html" class="w-full text-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300">
+                Trở Về Trang Chủ
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // --- Lấy các phần tử DOM ---
+        const moleculeCanvas = document.getElementById('moleculeCanvas');
+        const moleculeCtx = moleculeCanvas.getContext('2d');
+        const tempChartCanvas = document.getElementById('temperatureChart');
+        const energyChartCanvas = document.getElementById('internalEnergyChart');
+        const pauseButton = document.getElementById('pauseButton');
+        const timeSlider = document.getElementById('timeSlider');
+        const tempDisplay = document.getElementById('temperature-display');
+
+        // --- Cài đặt mô phỏng ---
+        const MOLECULE_COUNT = 80;
+        const MOLECULE_RADIUS = 5;
+        const START_TEMP = 800;
+        const MELTING_POINT = 1083;
+        const MAX_TEMP = 1400;
+
+        const TIME_TO_MELT = 400, MELTING_DURATION = 400, TIME_AFTER_MELT = 400;
+        const TOTAL_DURATION = TIME_TO_MELT + MELTING_DURATION + TIME_AFTER_MELT;
+
+        let molecules = [], animationFrameId, isPaused = true, currentTime = 0;
+        let tempChart, energyChart;
+
+        // --- Khởi tạo và thay đổi kích thước Canvas ---
+        function resizeAllCanvases() {
+            const parent = moleculeCanvas.parentElement;
+            moleculeCanvas.width = parent.clientWidth;
+            moleculeCanvas.height = parent.clientHeight;
+        }
+
+        // --- Khởi tạo phân tử ---
+        function initMolecules() {
+            molecules = [];
+            const cols = Math.ceil(Math.sqrt(MOLECULE_COUNT * (moleculeCanvas.width / moleculeCanvas.height)));
+            const rows = Math.ceil(MOLECULE_COUNT / cols);
+            const spacingX = moleculeCanvas.width / (cols + 1);
+            const spacingY = moleculeCanvas.height / (rows + 1);
+            for (let i = 0; i < MOLECULE_COUNT; i++) {
+                const row = Math.floor(i / cols), col = i % cols;
+                molecules.push({
+                    id: i, x: (col + 1) * spacingX, y: (row + 1) * spacingY,
+                    baseX: (col + 1) * spacingX, baseY: (row + 1) * spacingY,
+                    vx: 0, vy: 0, state: 'solid'
+                });
+            }
+        }
+
+        // --- Khởi tạo các đồ thị ---
+        function initCharts() {
+            if (tempChart) tempChart.destroy();
+            if (energyChart) energyChart.destroy();
+
+            const commonOptions = {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { ticks: { color: '#a0aec0', font: { size: 10 } } }
+                },
+                plugins: { legend: { display: true, labels: { color: '#a0aec0', boxWidth: 15, padding: 10, font: {size: 12} } } }
+            };
+
+            tempChart = new Chart(tempChartCanvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Nhiệt độ (°C)', data: [], borderColor: '#4fd1c5', backgroundColor: '#4fd1c520', borderWidth: 2, fill: true, pointRadius: 0 }] },
+                options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, min: START_TEMP, max: MAX_TEMP } } }
+            });
+            energyChart = new Chart(energyChartCanvas.getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Nội năng (Quy ước)', data: [], borderColor: '#f6ad55', backgroundColor: '#f6ad5520', borderWidth: 2, fill: true, pointRadius: 0 }] },
+                options: { ...commonOptions, scales: { ...commonOptions.scales, x: { title: { display: true, text: 'Thời gian', color: '#a0aec0'}, ticks: {color: '#a0aec0', maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } }, y: { ...commonOptions.scales.y, beginAtZero: false } } }
+            });
+        }
+        
+        // --- Tính toán trạng thái mô phỏng ---
+        function getSimulationState(time) {
+            let temp, internalEnergy, phase;
+            const C_SOLID = 1.0, C_LIQUID = 1.2, L_FUSION = 400; // Hằng số quy ước để vẽ đồ thị
+            const U_START = C_SOLID * START_TEMP;
+
+            if (time < TIME_TO_MELT) {
+                phase = 'heating_solid';
+                const progress = time / TIME_TO_MELT;
+                temp = START_TEMP + progress * (MELTING_POINT - START_TEMP);
+                internalEnergy = U_START + C_SOLID * (temp - START_TEMP);
+            } else if (time < TIME_TO_MELT + MELTING_DURATION) {
+                phase = 'melting';
+                temp = MELTING_POINT;
+                const U_AT_MELT_START = U_START + C_SOLID * (MELTING_POINT - START_TEMP);
+                const progress = (time - TIME_TO_MELT) / MELTING_DURATION;
+                internalEnergy = U_AT_MELT_START + progress * L_FUSION;
+            } else {
+                phase = 'heating_liquid';
+                const U_AT_MELT_END = U_START + C_SOLID * (MELTING_POINT - START_TEMP) + L_FUSION;
+                const progress = (time - (TIME_TO_MELT + MELTING_DURATION)) / TIME_AFTER_MELT;
+                temp = MELTING_POINT + progress * (MAX_TEMP - MELTING_POINT);
+                internalEnergy = U_AT_MELT_END + C_LIQUID * (temp - MELTING_POINT);
+            }
+            return { temperature: Math.min(temp, MAX_TEMP), internalEnergy, phase };
+        }
+
+        // --- Cập nhật và vẽ mô phỏng ---
+        function updateAndDraw() {
+            const { temperature, phase } = getSimulationState(currentTime);
+            tempDisplay.textContent = `${Math.round(temperature)}°C`;
+            const vibration_amplitude = ((temperature - START_TEMP) / (MELTING_POINT - START_TEMP)) * 4 + 1;
+            
+            let meltedCount = 0;
+            if (phase === 'melting') meltedCount = Math.floor(((currentTime - TIME_TO_MELT) / MELTING_DURATION) * MOLECULE_COUNT);
+            else if (phase === 'heating_liquid') meltedCount = MOLECULE_COUNT;
+            
+            molecules.forEach(p => {
+                 if (p.id < meltedCount && p.state !== 'liquid') {
+                    p.state = 'liquid';
+                    p.vx = (Math.random() - 0.5) * 4; p.vy = (Math.random() - 0.5) * 4;
+                } else if (p.id >= meltedCount && p.state !== 'solid') {
+                    p.state = 'solid';
+                }
+
+                if (p.state === 'solid') {
+                    p.x = p.baseX + (Math.random() - 0.5) * vibration_amplitude;
+                    p.y = p.baseY + (Math.random() - 0.5) * vibration_amplitude;
+                } else {
+                    p.x += p.vx; p.y += p.vy;
+                    if (p.x < MOLECULE_RADIUS || p.x > moleculeCanvas.width - MOLECULE_RADIUS) p.vx *= -1;
+                    if (p.y < MOLECULE_RADIUS || p.y > moleculeCanvas.height - MOLECULE_RADIUS) p.vy *= -1;
+                    p.vx *= 0.99; p.vy *= 0.99;
+                }
+            });
+
+            moleculeCtx.clearRect(0, 0, moleculeCanvas.width, moleculeCanvas.height);
+            molecules.forEach(p => {
+                moleculeCtx.beginPath();
+                moleculeCtx.arc(p.x, p.y, MOLECULE_RADIUS, 0, Math.PI * 2);
+                moleculeCtx.fillStyle = temperature < MELTING_POINT ? '#4fd1c5' : '#f6ad55';
+                moleculeCtx.fill();
+            });
+        }
+        
+        // --- Vòng lặp chính ---
+        function gameLoop() {
+            if (isPaused) return;
+
+            if (currentTime >= TOTAL_DURATION) {
+                currentTime = TOTAL_DURATION;
+                updateAndDraw();
+                timeSlider.value = currentTime;
+                pauseButton.textContent = 'Bắt Đầu Lại';
+                isPaused = true;
+                return;
+            }
+
+            if (currentTime % 5 === 0) {
+                const state = getSimulationState(currentTime);
+                const timeLabel = (currentTime / 50).toFixed(1) + 's';
+                if (tempChart.data.labels.length <= currentTime / 5) {
+                    tempChart.data.labels.push(timeLabel);
+                    energyChart.data.labels.push(timeLabel);
+                    tempChart.data.datasets[0].data.push(state.temperature);
+                    energyChart.data.datasets[0].data.push(state.internalEnergy);
+                    tempChart.update('none'); 
+                    energyChart.update('none'); 
+                }
+            }
+
+            updateAndDraw();
+            timeSlider.value = currentTime;
+            currentTime++;
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Hàm cập nhật toàn bộ trạng thái theo thanh trượt ---
+        function seek(time) {
+             currentTime = time;
+             const dataPoints = Math.floor(time / 5) + 1;
+             const newTempData = [], newEnergyData = [], newLabels = [];
+             for (let t = 0; t < dataPoints; t++) {
+                const state = getSimulationState(t*5);
+                newLabels.push((t * 5 / 50).toFixed(1) + 's');
+                newTempData.push(state.temperature);
+                newEnergyData.push(state.internalEnergy);
+             }
+             tempChart.data.labels = newLabels;
+             energyChart.data.labels = newLabels;
+             tempChart.data.datasets[0].data = newTempData;
+             energyChart.data.datasets[0].data = newEnergyData;
+             tempChart.update('none');
+             energyChart.update('none');
+             updateAndDraw();
+        }
+
+        // --- Xử lý sự kiện ---
+        pauseButton.addEventListener('click', () => {
+            if (currentTime >= TOTAL_DURATION) {
+                seek(0);
+            }
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? 'Tiếp Tục' : 'Tạm Dừng';
+            if (!isPaused) gameLoop();
+        });
+
+        timeSlider.addEventListener('input', (e) => {
+            if (!isPaused) {
+                isPaused = true;
+                pauseButton.textContent = 'Tiếp Tục';
+            }
+            seek(parseInt(e.target.value, 10));
+        });
+        
+        // --- Khởi tạo ---
+        function initialize() {
+            resizeAllCanvases();
+            initMolecules();
+            initCharts();
+            timeSlider.max = TOTAL_DURATION;
+            seek(0);
+            isPaused = true;
+            pauseButton.textContent = 'Bắt Đầu';
+        }
+        
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+             clearTimeout(resizeTimeout);
+             resizeTimeout = setTimeout(initialize, 250);
+        });
+        
+        initialize();
+    </script>
+</body>
+</html>
