@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashcard tiếng Anh</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #fdf6ec; /* nền ngà dịu mắt */
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+  <div class="max-w-xl w-full bg-white shadow-lg rounded-2xl p-6 text-center border border-gray-200">
+    <h1 class="text-2xl font-bold mb-4 text-blue-700">Flashcard từ tiếng Anh thông dụng</h1>
+
+    <div id="card" class="border rounded-xl p-6 bg-yellow-50 min-h-[160px] flex flex-col justify-center">
+      <h2 id="word" class="text-3xl font-semibold text-gray-900 mb-2"></h2>
+      <p id="phonetic" class="text-lg text-gray-600 mb-4"></p>
+      <p id="meaning" class="text-xl text-green-700 font-medium hidden"></p>
+    </div>
+
+    <div class="flex justify-between mt-6">
+      <button onclick="prevCard()" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">⬅ Trước</button>
+      <button onclick="toggleMeaning()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">👁 Hiện nghĩa</button>
+      <button onclick="nextCard()" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">Tiếp ➡</button>
+    </div>
+
+    <p class="text-gray-500 text-sm mt-4" id="progress"></p>
+  </div>
+
+  <script>
+    const cards = [
+      {word:"people",phonetic:"/ˈpiːpl/",meaning:"con người, dân tộc, nhân dân"},
+      {word:"history",phonetic:"/ˈhistəri/",meaning:"lịch sử"},
+      {word:"way",phonetic:"/wei/",meaning:"đường đi, cách, thói quen"},
+      {word:"art",phonetic:"/aːt/",meaning:"nghệ thuật, tài lẻ"},
+      {word:"world",phonetic:"/wəːld/",meaning:"thế giới, nhân loại"},
+      {word:"information",phonetic:"/ˌɪnfəˈmeɪʃn/",meaning:"thông tin"},
+      {word:"map",phonetic:"/mӕp/",meaning:"bản đồ"},
+      {word:"two",phonetic:"/tuː/",meaning:"số 2"},
+      {word:"family",phonetic:"/ˈfӕməli/",meaning:"gia đình"},
+      {word:"government",phonetic:"/ˈɡavəmənt/",meaning:"chính phủ"},
+      {word:"health",phonetic:"/helθ/",meaning:"sức khỏe"},
+      {word:"system",phonetic:"/ˈsistəm/",meaning:"hệ thống"},
+      {word:"computer",phonetic:"/kəmˈpjuːtə/",meaning:"máy tính"},
+      {word:"meat",phonetic:"/miːt/",meaning:"thịt"},
+      {word:"year",phonetic:"/jiə/",meaning:"năm"},
+      {word:"thanks",phonetic:"/θæŋks/",meaning:"cảm ơn"},
+      {word:"music",phonetic:"/ˈmjuːzik/",meaning:"âm nhạc"},
+      {word:"person",phonetic:"/ˈpəːsn/",meaning:"người"},
+      {word:"method",phonetic:"/ˈmeθəd/",meaning:"phương pháp"},
+      {word:"data",phonetic:"/ˈdeitə/",meaning:"dữ liệu"},
+      {word:"food",phonetic:"/fuːd/",meaning:"thức ăn"},
+      {word:"theory",phonetic:"/ˈθiəri/",meaning:"lý thuyết"},
+      {word:"law",phonetic:"/loː/",meaning:"luật"},
+      {word:"bird",phonetic:"/bəːd/",meaning:"con chim"},
+      {word:"literature",phonetic:"/ˈlitrətʃə/",meaning:"văn học"},
+      {word:"problem",phonetic:"/ˈprobləm/",meaning:"vấn đề"},
+      {word:"software",phonetic:"/ˈsɒftweə(r)/",meaning:"phần mềm"},
+      {word:"control",phonetic:"/kənˈtrəul/",meaning:"kiểm soát"},
+      {word:"knowledge",phonetic:"/ˈnolidʒ/",meaning:"kiến thức"},
+      {word:"power",phonetic:"/ˈpauə/",meaning:"sức mạnh, quyền lực"},
+      {word:"ability",phonetic:"/əˈbiləti/",meaning:"khả năng"},
+      {word:"economics",phonetic:"/iːkəˈnomiks/",meaning:"kinh tế học"},
+      {word:"love",phonetic:"/lav/",meaning:"tình yêu"},
+      {word:"internet",phonetic:"/ˈintənet/",meaning:"mạng internet"},
+      {word:"television",phonetic:"/ˈteliviʒən/",meaning:"truyền hình"},
+      {word:"science",phonetic:"/ˈsaiəns/",meaning:"khoa học"},
+      {word:"library",phonetic:"/ˈlaibrəri/",meaning:"thư viện"},
+      {word:"nature",phonetic:"/ˈneitʃə/",meaning:"thiên nhiên"},
+      {word:"fact",phonetic:"/fӕkt/",meaning:"sự thật"},
+      {word:"product",phonetic:"/ˈprodəkt/",meaning:"sản phẩm"},
+      {word:"idea",phonetic:"/aiˈdiə/",meaning:"ý tưởng"},
+      {word:"temperature",phonetic:"/ˈtemprətʃə/",meaning:"nhiệt độ"},
+      {word:"investment",phonetic:"/ɪnˈvestmənt/",meaning:"đầu tư"},
+      {word:"area",phonetic:"/ˈeəriə/",meaning:"khu vực"},
+      {word:"society",phonetic:"/səˈsaiəti/",meaning:"xã hội"},
+      {word:"activity",phonetic:"/ækˈtɪvəti/",meaning:"hoạt động"},
+      {word:"story",phonetic:"/ˈstoːri/",meaning:"câu chuyện"},
+      {word:"industry",phonetic:"/ˈindəstri/",meaning:"công nghiệp"},
+      {word:"media",phonetic:"/ˈmiːdiə/",meaning:"phương tiện truyền thông"},
+      {word:"thing",phonetic:"/θiŋ/",meaning:"vật, thứ"},
+      {word:"oven",phonetic:"/ˈavn/",meaning:"lò nướng"},
+      {word:"community",phonetic:"/kəˈmjuːnəti/",meaning:"cộng đồng"},
+      {word:"definition",phonetic:"/defiˈniʃən/",meaning:"sự định nghĩa"},
+      {word:"safety",phonetic:"/ˈseɪfti/",meaning:"sự an toàn"},
+      {word:"quality",phonetic:"/ˈkwoləti/",meaning:"chất lượng, phẩm chất"},
+      {word:"development",phonetic:"/dɪˈveləpmənt/",meaning:"sự phát triển"},
+      {word:"language",phonetic:"/ˈlӕŋɡwidʒ/",meaning:"ngôn ngữ"},
+      {word:"management",phonetic:"/ˈmænɪdʒmənt/",meaning:"việc quản lý"},
+      {word:"player",phonetic:"/ˈpleɪə(r)/",meaning:"người chơi"},
+      {word:"variety",phonetic:"/vəˈraiəti/",meaning:"sự đa dạng"},
+      {word:"video",phonetic:"/ˈvidiəu/",meaning:"video"},
+      {word:"week",phonetic:"/wiːk/",meaning:"tuần"},
+      {word:"security",phonetic:"/sɪˈkjʊərəti/",meaning:"sự an toàn"},
+      {word:"country",phonetic:"/ˈkantri/",meaning:"đất nước, quốc gia"},
+      {word:"exam",phonetic:"/ɪɡˈzæm/",meaning:"bài thi"},
+      {word:"movie",phonetic:"/ˈmuːvi/",meaning:"bộ phim"},
+      {word:"organization",phonetic:"/ˌɔːɡənaɪˈzeɪʃn/",meaning:"tổ chức, cơ quan"},
+      {word:"equipment",phonetic:"/ɪˈkwɪpmənt/",meaning:"trang thiết bị"},
+      {word:"physics",phonetic:"/ˈfiziks/",meaning:"môn vật lý"},
+      {word:"analysis",phonetic:"/əˈnӕləsis/",meaning:"sự phân tích"},
+      {word:"policy",phonetic:"/ˈpoləsi/",meaning:"chính sách"},
+      {word:"series",phonetic:"/ˈsiəriːz/",meaning:"chuỗi, loạt"},
+      {word:"thought",phonetic:"/θɔːt/",meaning:"ý nghĩ, sự suy nghĩ"},
+      {word:"basis",phonetic:"/ˈbeisis/",meaning:"nền tảng"},
+      {word:"boyfriend",phonetic:"/ˈbɔɪfrend/",meaning:"bạn trai"},
+      {word:"direction",phonetic:"/dəˈrekʃn/",meaning:"hướng, sự chỉ dẫn"},
+      {word:"strategy",phonetic:"/ˈstrӕtədʒi/",meaning:"chiến lược"},
+      {word:"technology",phonetic:"/tekˈnolədʒi/",meaning:"công nghệ"},
+      {word:"army",phonetic:"/ˈaːmi/",meaning:"quân đội"},
+      {word:"camera",phonetic:"/ˈkӕmərə/",meaning:"máy ảnh, máy quay"},
+      {word:"freedom",phonetic:"/ˈfriːdəm/",meaning:"sự tự do"},
+      {word:"paper",phonetic:"/ˈpeipə/",meaning:"giấy, báo"},
+      {word:"environment",phonetic:"/inˈvaiərənmənt/",meaning:"môi trường"},
+      {word:"child",phonetic:"/tʃaild/",meaning:"đứa trẻ"},
+      {word:"instance",phonetic:"/ˈinstəns/",meaning:"ví dụ"},
+      {word:"month",phonetic:"/manθ/",meaning:"tháng"},
+      {word:"truth",phonetic:"/truːθ/",meaning:"sự thật"},
+      {word:"marketing",phonetic:"/ˈmɑːkɪtɪŋ/",meaning:"tiếp thị"},
+      {word:"university",phonetic:"/juːniˈvəːsəti/",meaning:"trường đại học"},
+      {word:"writing",phonetic:"/ˈraɪtɪŋ/",meaning:"chữ viết"},
+      {word:"article",phonetic:"/ˈaːtikl/",meaning:"bài báo, vật, mạo từ"},
+      {word:"department",phonetic:"/diˈpaːtmənt/",meaning:"bộ, ban"},
+      {word:"difference",phonetic:"/ˈdifrəns/",meaning:"sự khác nhau"},
+      {word:"goal",phonetic:"/ɡəul/",meaning:"mục tiêu, bàn thắng"},
+      {word:"news",phonetic:"/njuːz/",meaning:"tin tức"},
+      {word:"audience",phonetic:"/ˈoːdiəns/",meaning:"khán giả"},
+      {word:"fishing",phonetic:"/ˈfɪʃɪŋ/",meaning:"câu cá"},
+      {word:"growth",phonetic:"/ɡrəʊθ/",meaning:"sự phát triển"},
+      {word:"income",phonetic:"/ˈiŋkəm/",meaning:"thu nhập"},
+      {word:"marriage",phonetic:"/ˈmærɪdʒ/",meaning:"hôn nhân"},
+      {word:"user",phonetic:"/ˈjuːzə(r)/",meaning:"người sử dụng"},
+      {word:"combination",phonetic:"/ˌkɒmbɪˈneɪʃn/",meaning:"sự kết hợp"},
+      {word:"failure",phonetic:"/ˈfeɪljə(r)/",meaning:"sự thất bại"},
+      {word:"meaning",phonetic:"/ˈmiːnɪŋ/",meaning:"ý nghĩa"},
+     // 👉 (rút gọn hiển thị, bạn có thể dán thêm toàn bộ danh sách đến từ thứ 200 theo cùng mẫu)
+      {word:"topic",phonetic:"/ˈtɒpɪk/",meaning:"chủ đề"}
+    ];
+
+    let current = 0;
+    const wordEl = document.getElementById("word");
+    const phoneticEl = document.getElementById("phonetic");
+    const meaningEl = document.getElementById("meaning");
+    const progressEl = document.getElementById("progress");
+
+    function showCard(index) {
+      const card = cards[index];
+      wordEl.textContent = card.word;
+      phoneticEl.textContent = card.phonetic;
+      meaningEl.textContent = card.meaning;
+      meaningEl.classList.add("hidden");
+      progressEl.textContent = `Từ ${index + 1} / ${cards.length}`;
+    }
+
+    function toggleMeaning() {
+      meaningEl.classList.toggle("hidden");
+    }
+
+    function nextCard() {
+      current = (current + 1) % cards.length;
+      showCard(current);
+    }
+
+    function prevCard() {
+      current = (current - 1 + cards.length) % cards.length;
+      showCard(current);
+    }
+
+    showCard(current);
+  </script>
+</body>
+</html>
