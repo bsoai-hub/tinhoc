@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>Flashcard Học Từ Vựng</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+  body {
+    font-family: 'Comic Neue', cursive;
+    background: #fffaf2;
+    color: #3c2f2f;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+  }
+  h1 { margin: 20px 0; color: #5c4033; }
+
+  .container {
+    width: 90%;
+    max-width: 700px;
+    margin: auto;
+    background: #fff8ee;
+    border-radius: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    padding: 20px;
+  }
+
+  select, input, button, textarea {
+    font-family: inherit;
+    font-size: 16px;
+    padding: 8px 10px;
+    margin: 5px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+  }
+  textarea {
+      width: calc(100% - 10px);
+      resize: vertical;
+  }
+  button {
+    background-color: #f4a261;
+    color: white;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+  }
+  button:hover { background-color: #e76f51; }
+  .delete-button { background-color: #e76f51; }
+  .delete-button:hover { background-color: #d62828; }
+  .export-button { background-color: #2a9d8f; }
+  .export-button:hover { background-color: #264653; }
+  .secondary-button { background-color: #8d99ae; }
+  .secondary-button:hover { background-color: #2b2d42; }
+
+  .section-divider {
+      border-bottom: 1px solid #eee;
+      margin: 15px 0;
+  }
+
+  .flashcard {
+    margin: 20px auto;
+    width: 90%;
+    height: 200px;
+    perspective: 1000px;
+    cursor: pointer;
+  }
+
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.7s;
+    transform-style: preserve-3d;
+  }
+  .card-inner.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    font-size: 28px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    padding: 10px; /* Thêm padding để chữ không bị sát lề */
+    box-sizing: border-box; /* Đảm bảo padding không làm tăng kích thước */
+  }
+
+  .front { background: #fefae0; color: #4b2e05; }
+  .back { background: #faedcd; color: #4b2e05; transform: rotateY(180deg); }
+
+  .controls button { margin: 5px; }
+
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #eee;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress {
+    height: 10px;
+    width: 0%;
+    background: #f4a261;
+    transition: width 0.5s;
+  }
+
+  .stats { margin-top: 10px; font-size: 14px; color: #5a3312; }
+  
+  .instructions {
+    margin-top: 15px;
+    padding: 10px 15px;
+    background: #fdfaf6;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    text-align: left;
+  }
+  .instructions summary {
+    font-weight: bold;
+    cursor: pointer;
+    color: #5c4033;
+    list-style-type: '📖 ';
+  }
+  .instructions p, .instructions ul {
+    margin-top: 10px;
+  }
+  .instructions ul {
+    padding-left: 25px;
+  }
+  .instructions li {
+    margin-bottom: 5px;
+  }
+
+  #reviewModeNotice {
+      display: none;
+      background-color: #e9c46a;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 15px;
+      font-weight: bold;
+  }
+
+  .external-game-button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 15px;
+      background-color: #2a9d8f;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: background-color 0.2s;
+  }
+  .external-game-button:hover {
+      background-color: #264653;
+  }
+
+  /* --- CSS CHO GIAO DIỆN ĐIỆN THOẠI --- */
+  @media (max-width: 768px) {
+    body {
+      font-size: 16px; /* Tăng cỡ chữ cơ bản cho dễ đọc */
+    }
+    .container {
+      width: 95%; /* Chiếm gần hết chiều rộng */
+      padding: 15px;
+    }
+    h1 {
+      font-size: 26px; /* Giảm cỡ chữ tiêu đề */
+    }
+    .flashcard {
+      height: 220px; /* Tăng chiều cao một chút cho chữ to hơn */
+    }
+    .card-face {
+      font-size: 24px; /* Giảm cỡ chữ trên thẻ */
+    }
+    /* Sắp xếp các nút điều khiển chính */
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .controls button {
+      width: 48%; /* Hai nút trên một hàng */
+      margin: 4px 0;
+      padding: 12px 5px; /* Tăng padding cho dễ bấm */
+      font-size: 15px;
+    }
+
+    /* Các nút thêm thẻ và input */
+    #add-edit-area {
+        display: flex;
+        flex-direction: column; /* Xếp chồng lên nhau */
+    }
+    #add-edit-area input, 
+    #add-edit-area button {
+        width: 100%; /* Cho các input và nút chiếm hết chiều rộng */
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .instructions summary {
+        line-height: 1.4; /* Tăng khoảng cách dòng cho dễ đọc */
+    }
+    .external-game-button {
+        width: 100%;
+        box-sizing: border-box;
+    }
+  }
+
+  @media (max-width: 480px) {
+     .card-face {
+        font-size: 20px; /* Chữ nhỏ hơn nữa trên màn hình rất nhỏ */
+     }
+     .controls button {
+        padding: 10px 5px;
+        font-size: 14px;
+     }
+     h1 {
+        font-size: 22px;
+     }
+  }
+
+</style>
+</head>
+<body>
+  <h1>📚 Flashcard Học Từ Vựng</h1>
+  <div class="container">
+    <div>
+      <select id="deckSelect" onchange="changeDeck()"></select>
+      <input type="text" id="newDeckName" placeholder="Tên bộ mới">
+      <button onclick="addDeck()">Thêm bộ</button>
+      <button onclick="deleteDeck()" class="delete-button">Xóa bộ</button>
+      <button onclick="exportToExcel()" class="export-button">Xuất ra Excel</button>
+    </div>
+    
+    <div class="section-divider"></div>
+    
+    <div>
+        <button onclick="reviewForgotten()" class="secondary-button">🧠 Ôn từ đã quên</button>
+        <button onclick="shuffleDeck()" class="secondary-button">🔀 Xáo trộn</button>
+        <button onclick="resetProgress()" class="secondary-button">🔄 Reset tiến độ</button>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div id="add-edit-area">
+      <input id="wordInput" placeholder="Từ tiếng Anh">
+      <input id="meaningInput" placeholder="Nghĩa tiếng Việt">
+      <button id="addCardBtn" onclick="addOrUpdateCard()">Thêm thẻ</button>
+      <button id="cancelEditBtn" onclick="cancelEdit()" style="display:none;" class="secondary-button">Hủy</button>
+    </div>
+
+    <div style="margin-top: 10px; padding: 10px; background: #fdfaf6; border-radius: 8px;">
+        <label for="excel-input" style="font-size: 15px;">Hoặc nhập từ file Excel:</label><br>
+        <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" style="margin-top: 5px;">
+        <button onclick="importFromExcel()">Tải lên</button>
+    </div>
+
+    <details class="instructions">
+      <summary>Xem hướng dẫn tạo file Excel</summary>
+      <div>
+        <p>Để nhập từ vựng từ file Excel, hãy chắc chắn file của bạn được định dạng đúng cách:</p>
+        <ul>
+          <li>File phải có định dạng <strong>.xlsx</strong>, <strong>.xls</strong> hoặc <strong>.csv</strong>.</li>
+          <li><strong>Cột A:</strong> Chứa các từ vựng tiếng Anh.</li>
+          <li><strong>Cột B:</strong> Chứa nghĩa tiếng Việt tương ứng.</li>
+          <li>Không cần có dòng tiêu đề. Chương trình sẽ đọc dữ liệu bắt đầu từ dòng đầu tiên.</li>
+        </ul>
+      </div>
+    </details>
+
+    <div id="reviewModeNotice">
+        Đang ở chế độ ôn tập các từ đã quên.
+        <button onclick="exitReviewMode()" style="margin-left: 15px;">Thoát chế độ</button>
+    </div>
+
+    <div class="flashcard" id="flashcard" onclick="flipCard()">
+      <div class="card-inner" id="cardInner">
+        <div class="card-face front" id="frontFace">Hello</div>
+        <div class="card-face back" id="backFace">Xin chào</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button onclick="prevCard()">⬅️ Trước</button>
+      <button onclick="speakWord()">🔊 Phát âm</button>
+      <button onclick="nextCard()">➡️ Tiếp</button>
+      <button onclick="markRemembered()">✅ Nhớ (A)</button>
+      <button onclick="markForgot()">❌ Quên (D)</button>
+      <button onclick="startEditCard()" class="secondary-button">✏️ Sửa thẻ</button>
+      <button onclick="deleteCard()" class="delete-button">🗑️ Xóa thẻ</button>
+    </div>
+
+    <div class="progress-bar"><div class="progress" id="progress"></div></div>
+    <div class="stats" id="stats"></div>
+    
+    <a href="https://tuanalone.github.io/irregular-verbs-game/game_with_me.html" target="_blank" class="external-game-button">
+        🎮 Game động từ bất quy tắc
+    </a>
+
+  </div>
+
+<script>
+// --- Default decks (you can expand later) ---
+const defaultDecks = {
+  "Gia đình": [
+    ["father","cha"],["mother","mẹ"],["brother","anh/em trai"],["sister","chị/em gái"],["grandfather","ông"],
+    ["grandmother","bà"],["son","con trai"],["daughter","con gái"],["uncle","chú/cậu"],["aunt","dì/cô"]
+  ],
+  "Chào hỏi": [
+    ["hello","xin chào"],["hi","chào"],["good morning","chào buổi sáng"],["good night","chúc ngủ ngon"],["see you","hẹn gặp lại"]
+  ],
+  "Công việc": [
+    ["job","công việc"],["office","văn phòng"],["meeting","cuộc họp"],["boss","sếp"],["colleague","đồng nghiệp"]
+  ],
+};
+
+// --- Load / state ---
+let decks = JSON.parse(localStorage.getItem('flashcardDecks')) || defaultDecks;
+let progress = JSON.parse(localStorage.getItem('flashcardProgress')) || {};
+let currentDeck = Object.keys(decks)[0] || null;
+let currentIndex = 0;
+let flipped = false;
+let editingIndex = -1; // -1 means not editing
+let isReviewMode = false;
+let originalDeckData = [];
+
+// --- DOM refs ---
+const deckSelect = document.getElementById('deckSelect');
+const cardInner = document.getElementById('cardInner');
+const frontFace = document.getElementById('frontFace');
+const backFace = document.getElementById('backFace');
+const stats = document.getElementById('stats');
+const progressBar = document.getElementById('progress');
+const wordInput = document.getElementById('wordInput');
+const meaningInput = document.getElementById('meaningInput');
+const addCardBtn = document.getElementById('addCardBtn');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+const reviewModeNotice = document.getElementById('reviewModeNotice');
+
+// --- init ---
+function init() {
+  exitReviewMode(); // Ensure not in review mode on start
+  renderDeckOptions();
+  if (currentDeck && decks[currentDeck]) {
+      deckSelect.value = currentDeck;
+  } else if (Object.keys(decks).length > 0) {
+      currentDeck = Object.keys(decks)[0];
+      deckSelect.value = currentDeck;
+  } else {
+      currentDeck = null;
+  }
+  cancelEdit();
+  showCard();
+}
+function renderDeckOptions() {
+  const deckKeys = Object.keys(decks);
+  deckSelect.innerHTML = deckKeys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+  if(deckKeys.length === 0){
+      deckSelect.innerHTML = '<option>Không có bộ nào</option>';
+  }
+}
+function escapeHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+init();
+
+// --- persistence ---
+function save() {
+  localStorage.setItem('flashcardDecks', JSON.stringify(decks));
+  localStorage.setItem('flashcardProgress', JSON.stringify(progress));
+}
+
+// --- deck operations ---
+function addDeck() {
+  exitReviewMode();
+  const name = document.getElementById('newDeckName').value.trim();
+  if(!name) return alert("Nhập tên bộ mới!");
+  if(decks[name]) return alert("Bộ này đã tồn tại!");
+  decks[name] = [];
+  currentDeck = name;
+  document.getElementById('newDeckName').value = '';
+  save();
+  init();
+}
+
+function changeDeck() {
+  exitReviewMode();
+  currentDeck = deckSelect.value;
+  currentIndex = 0;
+  showCard();
+}
+
+function deleteDeck() {
+    exitReviewMode();
+    const deckToDelete = deckSelect.value;
+    if (!deckToDelete || !decks[deckToDelete]) {
+        return alert("Không có bộ nào để xóa.");
+    }
+    if (!confirm(`Bạn có chắc muốn xóa bộ "${deckToDelete}"? Hành động này không thể hoàn tác.`)) {
+        return;
+    }
+
+    delete decks[deckToDelete];
+    if (progress[deckToDelete]) {
+        delete progress[deckToDelete];
+    }
+
+    const remainingDecks = Object.keys(decks);
+    currentDeck = remainingDecks.length > 0 ? remainingDecks[0] : null;
+    currentIndex = 0;
+
+    save();
+    init();
+}
+
+function shuffleDeck() {
+    if(!currentDeck || !decks[currentDeck] || decks[currentDeck].length < 2) return;
+    const deck = decks[currentDeck];
+    // Fisher-Yates shuffle
+    for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    currentIndex = 0;
+    showCard();
+    alert(`Đã xáo trộn bộ "${currentDeck}"!`);
+}
+
+function resetProgress() {
+    if (!currentDeck || !progress[currentDeck]) return alert("Bộ này chưa có tiến độ để reset.");
+    if (confirm(`Bạn có chắc muốn reset tiến độ học của bộ "${currentDeck}" không?`)) {
+        progress[currentDeck] = { remembered: [], forgotten: [] };
+        save();
+        updateStats();
+        alert("Đã reset tiến độ thành công.");
+    }
+}
+
+// --- Review Mode ---
+function reviewForgotten() {
+    if (isReviewMode) return;
+    if (!currentDeck || !progress[currentDeck] || !progress[currentDeck].forgotten || progress[currentDeck].forgotten.length === 0) {
+        return alert("Không có từ nào được đánh dấu 'Quên' trong bộ này.");
+    }
+
+    const forgottenWords = new Set(progress[currentDeck].forgotten);
+    originalDeckData = [...decks[currentDeck]]; // Backup original deck
+    const reviewDeck = originalDeckData.filter(card => forgottenWords.has(card[0]));
+    
+    if (reviewDeck.length === 0) {
+         return alert("Không có từ nào được đánh dấu 'Quên' trong bộ này.");
+    }
+
+    decks[currentDeck] = reviewDeck;
+    isReviewMode = true;
+    reviewModeNotice.style.display = 'block';
+    currentIndex = 0;
+    showCard();
+}
+
+function exitReviewMode() {
+    if (!isReviewMode) return;
+    
+    // Restore original deck if it exists
+    if (originalDeckData.length > 0) {
+        decks[currentDeck] = originalDeckData;
+        originalDeckData = [];
+    }
+    
+    isReviewMode = false;
+    reviewModeNotice.style.display = 'none';
+    currentIndex = 0; 
+    showCard();
+}
+
+// --- HÀM XUẤT BỘ RA FILE EXCEL ---
+function exportToExcel() {
+    if (!currentDeck) return alert("Vui lòng chọn một bộ để xuất ra Excel.");
+    const deckData = decks[currentDeck];
+    if (!deckData || deckData.length === 0) return alert("Bộ này đang trống, không thể xuất.");
+    const dataForExport = deckData;
+    const worksheet = XLSX.utils.aoa_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, currentDeck);
+    XLSX.writeFile(workbook, `${currentDeck}.xlsx`);
+}
+
+// --- NHẬP TỪ FILE EXCEL ---
+function importFromExcel() {
+    if (!currentDeck) return alert("Vui lòng tạo hoặc chọn một bộ trước khi nhập!");
+    const fileInput = document.getElementById('excel-input');
+    const file = fileInput.files[0];
+    if (!file) return alert("Vui lòng chọn một file Excel.");
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            let importedCount = 0;
+            const currentDeckData = decks[currentDeck];
+            const existingWords = new Set(currentDeckData.map(card => card[0].toLowerCase().trim()));
+
+            for (const row of jsonData) {
+                if (row && row.length >= 2) {
+                    const word = String(row[0] || '').trim();
+                    const meaning = String(row[1] || '').trim();
+
+                    if (word && meaning && !existingWords.has(word.toLowerCase())) {
+                        currentDeckData.push([word, meaning]);
+                        existingWords.add(word.toLowerCase());
+                        importedCount++;
+                    }
+                }
+            }
+
+            if (importedCount > 0) {
+                save();
+                currentIndex = 0; 
+                showCard();
+                alert(`Đã nhập thành công ${importedCount} thẻ mới vào bộ "${currentDeck}"!`);
+            } else {
+                alert("Không có thẻ mới nào được nhập. File có thể trống hoặc các từ đã tồn tại.");
+            }
+        } catch (error) {
+            console.error("Lỗi khi xử lý file Excel:", error);
+            alert("Đã xảy ra lỗi khi xử lý file. Vui lòng kiểm tra định dạng file.");
+        } finally {
+            fileInput.value = '';
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// --- card ops ---
+function addOrUpdateCard() {
+  if(!currentDeck) return alert("Vui lòng tạo một bộ trước!");
+  const word = wordInput.value.trim();
+  const mean = meaningInput.value.trim();
+  if(!word || !mean) return alert("Nhập đủ từ và nghĩa!");
+  
+  if (editingIndex > -1) { // We are in edit mode
+      decks[currentDeck][editingIndex] = [word, mean];
+      const oldIndex = editingIndex;
+      cancelEdit(); // Reset UI
+      currentIndex = oldIndex;
+      showCard();
+  } else { // We are adding a new card
+      decks[currentDeck].push([word, mean]);
+      currentIndex = decks[currentDeck].length - 1;
+      showCard();
+  }
+  save();
+  wordInput.value = '';
+  meaningInput.value = '';
+  wordInput.focus();
+}
+
+function startEditCard() {
+    if (!currentDeck || decks[currentDeck].length === 0) return;
+    editingIndex = currentIndex;
+    const [word, meaning] = decks[currentDeck][editingIndex];
+    wordInput.value = word;
+    meaningInput.value = meaning;
+    addCardBtn.textContent = 'Lưu thay đổi';
+    cancelEditBtn.style.display = 'inline-block';
+    wordInput.focus();
+}
+
+function cancelEdit() {
+    editingIndex = -1;
+    wordInput.value = '';
+    meaningInput.value = '';
+    addCardBtn.textContent = 'Thêm thẻ';
+    cancelEditBtn.style.display = 'none';
+}
+
+function deleteCard() {
+  if(!currentDeck) return;
+  const deck = decks[currentDeck];
+  if(!deck || deck.length === 0) return alert("Không có thẻ để xóa.");
+  if(!confirm("Bạn có chắc muốn xóa thẻ này?")) return;
+  deck.splice(currentIndex,1);
+  if (currentIndex >= deck.length) {
+      currentIndex = Math.max(0, deck.length - 1);
+  }
+  save();
+  showCard();
+}
+
+function showCard() {
+  cancelEdit();
+  if (!currentDeck || !decks[currentDeck]) {
+    frontFace.textContent = "Chào mừng!";
+    backFace.textContent = "Tạo một bộ mới để bắt đầu.";
+    cardInner.classList.remove('flipped');
+    flipped = false;
+    updateStats();
+    return;
+  }
+
+  const deck = decks[currentDeck] || [];
+  if(deck.length === 0) {
+    frontFace.textContent = "Chưa có thẻ";
+    backFace.textContent = "Hãy thêm từ mới!";
+    cardInner.classList.remove('flipped');
+    flipped = false;
+    if (currentIndex != 0) currentIndex = 0; 
+    updateStats();
+    return;
+  }
+  
+  if (currentIndex >= deck.length) {
+      currentIndex = deck.length - 1;
+  }
+
+  const [w,m] = deck[currentIndex];
+  frontFace.textContent = w;
+  backFace.textContent = m;
+  cardInner.classList.remove('flipped');
+  flipped = false;
+  updateStats();
+}
+
+function flipCard() {
+  if (!currentDeck || decks[currentDeck].length === 0) return;
+  flipped = !flipped;
+  cardInner.classList.toggle('flipped', flipped);
+}
+
+// navigation
+function nextCard() {
+  const deck = decks[currentDeck] || [];
+  if(deck.length === 0) return;
+  currentIndex = (currentIndex + 1) % deck.length;
+  showCard();
+}
+function prevCard() {
+  const deck = decks[currentDeck] || [];
+  if(deck.length === 0) return;
+  currentIndex = (currentIndex - 1 + deck.length) % deck.length;
+  showCard();
+}
+
+// remember / forgot
+function markRemembered() {
+  if(!currentDeck) return;
+  const deck = decks[currentDeck] || [];
+  if (deck.length === 0) return;
+  if(!progress[currentDeck]) progress[currentDeck] = { remembered: [], forgotten: [] };
+  const word = deck[currentIndex]?.[0];
+  if(!word) return;
+  if(!progress[currentDeck].remembered.includes(word)) progress[currentDeck].remembered.push(word);
+  progress[currentDeck].forgotten = (progress[currentDeck].forgotten || []).filter(w => w !== word);
+  save();
+  updateStats();
+  nextCard();
+}
+function markForgot() {
+  if(!currentDeck) return;
+  const deck = decks[currentDeck] || [];
+  if (deck.length === 0) return;
+  if(!progress[currentDeck]) progress[currentDeck] = { remembered: [], forgotten: [] };
+  const word = deck[currentIndex]?.[0];
+  if(!word) return;
+  if(!progress[currentDeck].forgotten.includes(word)) progress[currentDeck].forgotten.push(word);
+  progress[currentDeck].remembered = (progress[currentDeck].remembered || []).filter(w => w !== word);
+  save();
+  updateStats();
+  nextCard();
+}
+
+// speak
+function speakWord() {
+  if(!currentDeck) return;
+  const deck = decks[currentDeck] || [];
+  if (deck.length === 0) return;
+  const word = deck[currentIndex]?.[0];
+  if(!word) return;
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'en-US';
+  speechSynthesis.speak(u);
+}
+
+// stats / progress
+function updateStats() {
+    if (!currentDeck) {
+        stats.innerHTML = "Chưa chọn bộ nào";
+        progressBar.style.width = '0%';
+        return;
+    }
+  // The deck for stats should be the original one in review mode
+  const deckForStats = isReviewMode ? originalDeckData : (decks[currentDeck] || []);
+  const prog = progress[currentDeck] || { remembered: [], forgotten: [] };
+  const total = deckForStats.length;
+  const remembered = prog.remembered ? prog.remembered.length : 0;
+  const forgotten = prog.forgotten ? prog.forgotten.length : 0;
+  const percent = total ? Math.round((remembered / total) * 100) : 0;
+  
+  const currentTotal = decks[currentDeck]?.length || 0;
+  const currentCardNumber = currentTotal > 0 ? currentIndex + 1 : 0;
+  stats.innerHTML = `Bộ: <b>${escapeHtml(currentDeck)}</b><br>Thẻ ${currentCardNumber}/${currentTotal} &nbsp;|&nbsp; Tiến độ chung: ${remembered}/${total} đã nhớ (${percent}%)`;
+  progressBar.style.width = percent + '%';
+}
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (e) => {
+    // Stop if user is typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
+    switch (e.key) {
+        case 'ArrowLeft':
+            prevCard();
+            break;
+        case 'ArrowRight':
+            nextCard();
+            break;
+        case ' ': // Spacebar
+            e.preventDefault(); // Prevent page scrolling
+            flipCard();
+            break;
+        case 's':
+        case 'S':
+            speakWord();
+            break;
+        case 'a':
+        case 'A':
+            markRemembered();
+            break;
+        case 'd':
+        case 'D':
+            markForgot();
+            break;
+    }
+});
+
+// Save periodically
+window.addEventListener('beforeunload', save);
+</script>
+</body>
+</html>
